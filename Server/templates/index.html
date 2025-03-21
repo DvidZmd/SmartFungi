@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pan & Tilt Control</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        .status {
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 16px;
+        }
+        input {
+            padding: 10px;
+            margin: 10px;
+            font-size: 16px;
+        }
+        .video-container {
+            margin: 20px auto;
+            max-width: 600px;
+        }
+        .video-container img {
+            width: 100%;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Pan & Tilt Control</h1>
+
+    <!-- Video Stream -->
+    <div class="video-container">
+        <h3>Live Video Feed</h3>
+        <img src="http://192.168.1.37:5000/video_feed" alt="Live Video Feed">
+    </div>
+    
+    <!-- Status Section -->
+    <div class="status">
+        <h3>Sensor Readings</h3>
+        <p>Temperature (DHT22): <span id="temperature_dht"></span>°C</p>
+        <p>Humidity: <span id="humidity"></span>%</p>
+        <p>Temperature (DS18B20): <span id="temperature_ds18b20"></span>°C</p>
+        <p>Soil Moisture: <span id="soil_moisture"></span></p>
+    </div>
+
+    <!-- Controls Section -->
+    <div class="controls">
+        <button onclick="moveServo(servo_pan - 5, servo_tilt)">Up</button><br>
+        <button onclick="moveServo(servo_pan, servo_tilt + 5)">Left</button>
+        <button onclick="moveServo(servo_pan, servo_tilt - 5)">Right</button><br>
+        <button onclick="moveServo(servo_pan + 5, servo_tilt)">Down</button>
+    </div>
+
+    <script>
+        const apiUrl = "http://192.168.1.37:5000"; // Raspberry Pi's IP
+        let servo_pan = 90;
+        let servo_tilt = 90;
+
+        async function moveServo(pan, tilt) {
+            servo_pan = Math.max(85, Math.min(170, pan));
+            servo_tilt = Math.max(0, Math.min(180, tilt));
+            
+            try {
+                const response = await fetch(`${apiUrl}/set_servo`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ pan: servo_pan, tilt: servo_tilt })
+                });
+                if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+            } catch (error) {
+                console.error("Error:", error);
+                //alert("Failed to move servo");
+            }
+        }
+
+        async function fetchSensorData() {
+            try {
+                const response = await fetch(`${apiUrl}/get_sensors`);
+                if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+                const data = await response.json();
+                document.getElementById("temperature_dht").textContent = data.temperature_dht;
+                document.getElementById("humidity").textContent = data.humidity;
+                document.getElementById("temperature_ds18b20").textContent = data.temperature_ds18b20;
+                document.getElementById("soil_moisture").textContent = data.soil_moisture;
+            } catch (error) {
+                console.error("Error fetching sensor data:", error);
+            }
+        }
+
+        setInterval(fetchSensorData, 500);
+    </script>
+</body>
+</html>
